@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qtzmq"
+version = "0.1.0"
+description = "Qt-friendly plotly bindings for PySide and PyQt applications"
+readme = "README.md"
+requires-python = ">=3.9"
+
+authors = [
+    { name = "Roberto Herrera", email = "robertodherreram@gmail.com" }
+]
+
+license = { text = "MIT" }
+
+keywords = [
+    "qt",
+    "pyside",
+    "pyqt",
+    "plotly",
+    "qt signals",
+    "real time plotting",
+    "scientific data visualization",
+    "qt gui",
+    "instrument control"
+]
+
+dependencies = [
+    "pyzmq"
+]
+
+[project.optional-dependencies]
+qt = [
+    "PySide6"
+]
+
+[project.urls]
+Homepage = "https://github.com/Robertoherrera0/qtplotly"
+Source = "https://github.com/Robertoherrera0/qtplotly"
+Issues = "https://github.com/Robertoherrera0/qtplotly/issues"
