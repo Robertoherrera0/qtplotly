@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script src="file:///home/rdhc54/murr/gans-control/gans_control/ui/plot/plotly.min.js"></script>
+<style>
+html,body{margin:0;height:100%;width:100%;}
+#plot{height:100%;width:100%;}
+</style>
+</head>
+<body>
+<div id="plot"></div>
+<script>
+window.renderFigure = function(figJSON) {
+    const fig = JSON.parse(figJSON);
+    Plotly.react("plot", fig.data, fig.layout, {
+        displaylogo:false,
+        responsive:true
+    });
+};
+</script>
+</body>
+</html>
