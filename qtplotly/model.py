@@ -1,131 +1,91 @@
 from __future__ import annotations
 
-import numpy as np
-from PySide6.QtCore import QObject
+from .curve import Curve
+from .marker import Marker
+from .themes.colors import ColorTable
 
-class PlotModel(QObject):
-    def __init__(self, plot, column_selection, parent=None):
-        super().__init__(parent)
+class PlotModel:
 
-        self.plot = plot
-        self.column_selection = column_selection
+    def __init__(self):
 
-        self.client = QtDataClient()
-        self.client.dataUpdated.connect(self._on_live_data)
+        self.curves: dict[str, Curve] = {}
+        self.markers: dict[str, Marker] = {}
 
-        self.column_selection.selectionChanged.connect(
-            self._on_selection_changed
-        )
-
-        self._live_data: np.ndarray | None = None
-        self._col_index: dict[str, int] = {}
-        self._current_scan: int | None = None
-        self._last_npts: int = 0
-        self._selection_state: dict | None = None
-
-    def _on_live_data(self, payload: dict):
-
-        rows = payload.get("data", [])
-        columns = payload.get("columns", {})
-        metadata = payload.get("metadata", {})
-
-        if not rows or not columns:
-            return
-
-        scanno = metadata.get("scanno")
-        npts = payload.get("npts", 0)
-
-        if scanno != self._current_scan:
-            self._current_scan = scanno
-            self._last_npts = 0
-            self.plot.clear()
-
-        if npts == self._last_npts:
-            return
-
-        self._last_npts = npts
-
-        ordered = sorted((int(k), v) for k, v in columns.items())
-        ordered_columns = [name for _, name in ordered]
-
-        self._live_data = np.asarray(rows)
-
-        self._col_index = {
-            name: int(k)
-            for k, name in columns.items()
+        self.axis_titles = {
+            "x": "",
+            "y1": "",
+            "y2": ""
         }
 
-        self.column_selection.set_columns(ordered_columns)
+        self.live_mode = False
+        self.colors = ColorTable()
 
-        if self._selection_state is None:
-            self.column_selection.resetDefault()
+    def add_curve(self, name: str, axis: str = "y1", color: str | None = None):
 
-        self._render()
+        if name in self.curves:
+            return self.curves[name]
 
-    def _on_selection_changed(self, state: dict):
-        self._selection_state = state
-        self._render()
+        if color is None:
+            color = self.colors.get(name)
 
-    def _render(self):
+        curve = Curve(name=name, axis=axis, color=color)
+        self.curves[name] = curve
+        return curve
 
-        if self._live_data is None:
-            return
+    def remove_curve(self, name: str):
 
-        if not self._selection_state:
-            return
+        self.curves.pop(name, None)
 
-        x_list = self._selection_state.get("x", [])
-        y1_list = self._selection_state.get("y1", [])
-        y2_list = self._selection_state.get("y2", [])
+    def get_curve(self, name: str) -> Curve | None:
 
-        if not x_list:
-            return
+        return self.curves.get(name)
 
-        x_name = x_list[0]
+    def append_data(self, name: str, x, y):
 
-        if x_name not in self._col_index:
-            return
+        curve = self.curves.get(name)
 
-        x = np.asarray(self._live_data[:, self._col_index[x_name]])
+        if curve is None:
+            curve = self.add_curve(name)
 
-        curves = {}
+        curve.append(x, y)
 
-        for name in y1_list:
-            y = self._compute_column(name)
-            if y is not None:
-                curves[name] = {"y": y, "axis": "y1"}
+    def set_data(self, name: str, x, y):
 
-        for name in y2_list:
-            y = self._compute_column(name)
-            if y is not None:
-                curves[name] = {"y": y, "axis": "y2"}
+        curve = self.curves.get(name)
 
+        if curve is None:
+            curve = self.add_curve(name)
 
-        if not curves:
-            return
+        curve.set_data(x, y)
 
-        self.plot.set_data(x, curves)
+    def add_marker(self, name: str, x: float, color: str = "black", width: int = 1, persistent: bool = False):
 
-    def _compute_column(self, name: str):
+        self.markers[name] = Marker(
+            name=name,
+            x=x,
+            color=color,
+            width=width,
+            persistent=persistent
+        )
 
-        if name in self._col_index:
-            return np.asarray(
-                self._live_data[:, self._col_index[name]]
-            )
+    def remove_marker(self, name: str):
 
-        if name == "det/mon":
-            if "det" in self._col_index and "mon" in self._col_index:
-                det = self._live_data[:, self._col_index["det"]]
-                mon = self._live_data[:, self._col_index["mon"]]
-                return np.asarray(det / np.maximum(mon, 1e-12))
+        self.markers.pop(name, None)
 
-        if name == "det/sec":
-            if "det" in self._col_index and "sec" in self._col_index:
-                det = self._live_data[:, self._col_index["det"]]
-                sec = self._live_data[:, self._col_index["sec"]]
-                return np.asarray(det / np.maximum(sec, 1e-12))
+    def set_axis_title(self, axis: str, title: str):
 
-        return None
+        if axis not in self.axis_titles:
+            raise ValueError(f"Unknown axis '{axis}'")
 
-    def stop(self):
-        self.client.disconnect()
+        self.axis_titles[axis] = title
+
+    def clear(self):
+
+        for curve in self.curves.values():
+            curve.clear()
+
+        # remove non-persistent markers
+        self.markers = {
+            name: m for name, m in self.markers.items()
+            if m.persistent
+        }

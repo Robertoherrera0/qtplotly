@@ -1,42 +1,28 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "qtzmq"
+name = "qtplotly"
 version = "0.1.0"
-description = "Qt-friendly plotly bindings for PySide and PyQt applications"
+description = "Qt Plotly widget for real-time scientific plotting"
+authors = [
+    {name = "Roberto Herrera"}
+]
 readme = "README.md"
+license = {text = "MIT"}
+
 requires-python = ">=3.9"
 
-authors = [
-    { name = "Roberto Herrera", email = "robertodherreram@gmail.com" }
-]
-
-license = { text = "MIT" }
-
-keywords = [
-    "qt",
-    "pyside",
-    "pyqt",
-    "plotly",
-    "qt signals",
-    "real time plotting",
-    "scientific data visualization",
-    "qt gui",
-    "instrument control"
-]
-
 dependencies = [
-    "pyzmq"
+    "PySide6",
+    "plotly",
+    "numpy"
 ]
 
-[project.optional-dependencies]
-qt = [
-    "PySide6"
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qtplotly*"]
 
-[project.urls]
-Homepage = "https://github.com/Robertoherrera0/qtplotly"
-Source = "https://github.com/Robertoherrera0/qtplotly"
-Issues = "https://github.com/Robertoherrera0/qtplotly/issues"
+[tool.setuptools.package-data]
+qtplotly = ["resources/*.html", "resources/*.js"]

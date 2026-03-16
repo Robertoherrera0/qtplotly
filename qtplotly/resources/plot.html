@@ -2,22 +2,138 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<script src="file:///home/rdhc54/murr/gans-control/gans_control/ui/plot/plotly.min.js"></script>
+
+<script src="plotly.min.js"></script>
+
 <style>
-html,body{margin:0;height:100%;width:100%;}
-#plot{height:100%;width:100%;}
+html,body{
+height:100%;
+width:100%;
+margin:0;
+background:transparent;
+}
+
+#plot{
+height:100%;
+width:100%;
+background:transparent;
+}
+
+/* Modebar styling (visibility controlled via JS) */
+#plot .modebar{
+position:absolute !important;
+top:8px !important;
+right:8px !important;
+background:rgba(255,255,255,0.65);
+border-radius:6px;
+padding:2px;
+transition:opacity .12s ease;
+}
+
+#plot .modebar-btn{
+opacity:0.85;
+}
+
+#plot .modebar-btn:hover{
+opacity:1;
+}
 </style>
+
 </head>
+
 <body>
+
 <div id="plot"></div>
+
 <script>
-window.renderFigure = function(figJSON) {
-    const fig = JSON.parse(figJSON);
-    Plotly.react("plot", fig.data, fig.layout, {
-        displaylogo:false,
-        responsive:true
+
+/* ---------- modebar hover controller ---------- */
+
+function installModebarHover(plot){
+
+    const modebar = plot.querySelector(".modebar");
+    if(!modebar) return;
+
+    /* start hidden */
+    modebar.style.opacity = "0";
+    modebar.style.pointerEvents = "none";
+
+    plot.addEventListener("mouseenter", ()=>{
+        modebar.style.opacity = "1";
+        modebar.style.pointerEvents = "auto";
     });
+
+    plot.addEventListener("mouseleave", ()=>{
+        modebar.style.opacity = "0";
+        modebar.style.pointerEvents = "none";
+    });
+
+}
+
+
+/* ---------- main render function ---------- */
+
+window.renderFigure = function(figJSON, cfgJSON) {
+
+    try {
+
+        const fig = JSON.parse(figJSON);
+        const cfg = JSON.parse(cfgJSON);
+
+        const plot = document.getElementById("plot");
+
+        if (plot && plot.removeAllListeners)
+            plot.removeAllListeners();
+
+        Plotly.react(
+            "plot",
+            fig.data,
+            fig.layout,
+            cfg
+        ).then(() => {
+
+            /* ensure modebar hover behaviour */
+            installModebarHover(plot);
+
+            const paper  = (fig.layout && fig.layout.paper_bgcolor) || "transparent";
+            const plotbg = (fig.layout && fig.layout.plot_bgcolor)  || "transparent";
+
+            document.documentElement.style.background = paper;
+            document.body.style.background = paper;
+
+            const applyBg = () => {
+
+                const rects = plot.querySelectorAll(".bglayer rect.bg");
+
+                rects.forEach(r => {
+                    r.setAttribute("fill", plotbg);
+                    r.setAttribute("stroke", "rgba(0,0,0,0.18)");
+                    r.setAttribute("stroke-width", "1");
+                });
+
+            };
+
+            requestAnimationFrame(applyBg);
+
+            plot.on("plotly_afterplot", () => {
+
+                applyBg();
+                installModebarHover(plot);
+
+            });
+
+            window.addEventListener("resize", applyBg, { passive:true });
+
+        });
+
+    } catch(err) {
+
+        console.error("renderFigure error:", err);
+
+    }
 };
+
 </script>
+
 </body>
 </html>
