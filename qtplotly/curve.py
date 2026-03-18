@@ -14,6 +14,8 @@ class Curve:
     visible: bool = True
     color: str | None = None
 
+    role: str = "data"
+
     def __post_init__(self):
 
         if self.axis not in ("y1", "y2"):

@@ -7,7 +7,6 @@ class PlotBridge:
     Thin wrapper for sending commands from Qt to the
     JavaScript Plotly environment running inside QWebEngine.
     """
-
     def __init__(self, webview):
         self._webview = webview
 

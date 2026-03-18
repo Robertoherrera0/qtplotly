@@ -31,7 +31,7 @@ def main():
     app = QApplication(sys.argv)
 
     window = QMainWindow()
-    window.resize(900, 600)
+    window.resize(1000, 700)
 
     plot = PlotWidget()
     window.setCentralWidget(plot)
@@ -52,7 +52,6 @@ def main():
 
         if msg is None:
 
-            # if stream stops for 1 second disable live mode
             if time.time() - last_message_time > 1:
                 plot.set_live_mode(False)
 

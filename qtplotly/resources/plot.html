@@ -19,7 +19,6 @@ width:100%;
 background:transparent;
 }
 
-/* Modebar styling (visibility controlled via JS) */
 #plot .modebar{
 position:absolute !important;
 top:8px !important;
@@ -47,14 +46,17 @@ opacity:1;
 
 <script>
 
-/* ---------- modebar hover controller ---------- */
+let gd = null;
+
+document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+});
 
 function installModebarHover(plot){
 
     const modebar = plot.querySelector(".modebar");
     if(!modebar) return;
 
-    /* start hidden */
     modebar.style.opacity = "0";
     modebar.style.pointerEvents = "none";
 
@@ -67,11 +69,45 @@ function installModebarHover(plot){
         modebar.style.opacity = "0";
         modebar.style.pointerEvents = "none";
     });
-
 }
 
 
-/* ---------- main render function ---------- */
+function attachHandlers(plot){
+
+    // double-click reset
+    plot.on('plotly_doubleclick', function() {
+        Plotly.relayout(plot, {
+            'xaxis.autorange': true,
+            'yaxis.autorange': true
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === "Escape") {
+            Plotly.relayout(plot, {
+                'xaxis.autorange': true,
+                'yaxis.autorange': true
+            });
+        }
+    });
+}
+
+function appendData(payload) {
+
+    const { name, x, y } = payload;
+
+    const idx = window.traceMap[name];
+    if (idx === undefined) return;
+
+    Plotly.extendTraces(
+        "plot",
+        {
+            x: [x],
+            y: [y],
+        },
+        [idx]
+    );
+}
 
 window.renderFigure = function(figJSON, cfgJSON) {
 
@@ -82,49 +118,24 @@ window.renderFigure = function(figJSON, cfgJSON) {
 
         const plot = document.getElementById("plot");
 
-        if (plot && plot.removeAllListeners)
-            plot.removeAllListeners();
+        if (!gd) {
 
-        Plotly.react(
-            "plot",
-            fig.data,
-            fig.layout,
-            cfg
-        ).then(() => {
+            gd = plot;
 
-            /* ensure modebar hover behaviour */
-            installModebarHover(plot);
-
-            const paper  = (fig.layout && fig.layout.paper_bgcolor) || "transparent";
-            const plotbg = (fig.layout && fig.layout.plot_bgcolor)  || "transparent";
-
-            document.documentElement.style.background = paper;
-            document.body.style.background = paper;
-
-            const applyBg = () => {
-
-                const rects = plot.querySelectorAll(".bglayer rect.bg");
-
-                rects.forEach(r => {
-                    r.setAttribute("fill", plotbg);
-                    r.setAttribute("stroke", "rgba(0,0,0,0.18)");
-                    r.setAttribute("stroke-width", "1");
-                });
-
-            };
-
-            requestAnimationFrame(applyBg);
-
-            plot.on("plotly_afterplot", () => {
-
-                applyBg();
-                installModebarHover(plot);
-
+            Plotly.newPlot(gd, fig.data, fig.layout, cfg).then(() => {
+                installModebarHover(gd);
+                attachHandlers(gd);
             });
 
-            window.addEventListener("resize", applyBg, { passive:true });
+        } else {
 
-        });
+            Plotly.react(gd, fig.data, fig.layout, cfg);
+        }
+
+        // apply paper background only 
+        const paper = (fig.layout && fig.layout.paper_bgcolor) || "transparent";
+        document.documentElement.style.background = paper;
+        document.body.style.background = paper;
 
     } catch(err) {
 

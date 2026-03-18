@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+import numpy as np
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from PySide6.QtCore import QUrl
@@ -28,7 +29,7 @@ class PlotWidget(QWidget):
         self.web = QWebEngineView(self)
         self.web.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.web.setStyleSheet("border:0px; background:transparent;")
-
+        
         layout.addWidget(self.web)
 
         self.bridge = PlotBridge(self.web)
@@ -81,7 +82,18 @@ class PlotWidget(QWidget):
     def append_data(self, name, x, y):
 
         self.model.append_data(name, x, y)
-        self.refresh()
+
+        if not self._ready:
+            return
+
+        payload = json.dumps({
+            "name": name,
+            "x": list(np.atleast_1d(x)),
+            "y": list(np.atleast_1d(y)),
+        })
+
+        script = f"appendData({payload});"
+        self.web.page().runJavaScript(script)
 
     def set_data(self, name, x, y):
 
@@ -94,7 +106,6 @@ class PlotWidget(QWidget):
         self.refresh()
 
     def set_live_mode(self, enabled: bool):
-
         self.model.live_mode = enabled
         self.refresh()
 
@@ -120,6 +131,10 @@ class PlotWidget(QWidget):
 
         self._push_json(fig_json)
 
+    def set_plot_background(self, color: str):
+        self.model.plot_bgcolor = color
+        self.refresh()
+
 
     def _push_json(self, fig_json):
 
@@ -136,7 +151,11 @@ class PlotWidget(QWidget):
             cols=1,
             specs=[[{"secondary_y": True}]]
         )
+
         visible_curves = [c for c in self.model.curves.values() if c.visible]
+
+        shapes = []
+        annotations = []
 
         for curve in self.model.curves.values():
 
@@ -145,24 +164,31 @@ class PlotWidget(QWidget):
 
             secondary = curve.axis == "y2"
 
+            if curve.role == "fit":
+                line = dict(color="red", width=2, dash="dash")
+                mode = "lines"
+            else:
+                line = dict(width=2, color=curve.color) if curve.color else dict(width=2)
+                mode = "lines+markers"
+
             fig.add_trace(
                 go.Scatter(
                     x=curve.x,
                     y=curve.y,
-                    mode="lines+markers",
+                    mode=mode,
                     name=curve.name,
-                    line=dict(width=2, color=curve.color) if curve.color else dict(width=2),
-                    marker=dict(size=6)
+                    line=line,
+                    marker=dict(size=6) if curve.role != "fit" else None,
                 ),
                 secondary_y=secondary
             )
 
-        shapes = []
-        annotations = []
-
-        # todo 
-        # need to fix when two or more markers are overlapping
         for marker in self.model.markers.values():
+
+            if not marker.visible:
+                continue
+
+            color = marker.color if marker.color else "#1f77b4"
 
             shapes.append(
                 dict(
@@ -171,37 +197,44 @@ class PlotWidget(QWidget):
                     x1=marker.x,
                     y0=0,
                     y1=1,
+                    xref="x",
                     yref="paper",
                     line=dict(
-                        color=marker.color,
+                        color=color,
                         width=marker.width
-                    )
+                    ),
+                    layer="above"
                 )
             )
 
             annotations.append(
                 dict(
                     x=marker.x,
-                    y=1.0,
+                    y=0.969,
                     xref="x",
                     yref="paper",
-                    text=marker.name,
+
+                    text=marker.label,
+
                     showarrow=True,
                     arrowhead=2,
-                    ax=0, ay=10,
+                    arrowsize=1,
+                    arrowwidth=1.2,
+                    arrowcolor="black",
 
-                    yanchor="bottom",
-                    xanchor="center",
-
-                    bgcolor="white",
-                    bordercolor=marker.color,
-                    borderwidth=1,
-                    borderpad=2,
+                    ax=0,
+                    ay=-20,
 
                     font=dict(
-                        size=9,
-                        color=marker.color
+                        size=11,
+                        color=color
                     ),
+
+                    bgcolor="rgba(0,0,0,0)",
+                    borderwidth=0,
+
+                    xanchor="center",
+                    yanchor="bottom",
                 )
             )
 
@@ -220,16 +253,14 @@ class PlotWidget(QWidget):
             )
         )
 
-        background = "#FFF8E1" if self.model.live_mode else "#FFFFFF"
-
         show_legend = len(visible_curves) > 1
 
         fig.update_layout(
 
             autosize=True,
 
-            plot_bgcolor=background,
-            paper_bgcolor=background,
+            plot_bgcolor=self.model.get_background_color(),
+            paper_bgcolor="#FFFFFF",
 
             shapes=shapes,
             annotations=annotations,
@@ -249,8 +280,8 @@ class PlotWidget(QWidget):
                 y=0.985,
                 xanchor="right",
                 yanchor="top",
-                font=dict(size=11),  
-                bgcolor="rgba(0,0,0,0)", 
+                font=dict(size=11),
+                bgcolor="rgba(0,0,0,0)",
                 borderwidth=0,
             ),
 
