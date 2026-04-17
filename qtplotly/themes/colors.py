@@ -1,4 +1,4 @@
-# qtplotly/styles/colors.py
+# qtplotly/themes/colors.py
 from __future__ import annotations
 import itertools
 

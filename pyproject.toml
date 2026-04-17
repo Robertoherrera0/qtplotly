@@ -1,28 +1,41 @@
-[build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+# qtplotly
 
-[project]
-name = "qtplotly"
-version = "0.1.0"
-description = "Qt Plotly widget for real-time scientific plotting"
-authors = [
-    {name = "Roberto Herrera"}
-]
-readme = "README.md"
-license = {text = "MIT"}
+Qt widget for embedding interactive Plotly figures in PySide6 and PyQt desktop applications.
 
-requires-python = ">=3.9"
+Built for real-time scientific data visualization. Originally developed for the GANS neutron reflectometer at the University of Missouri Research Reactor.
 
-dependencies = [
-    "PySide6",
-    "plotly",
-    "numpy"
-]
+## Features
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["qtplotly*"]
+- Real-time streaming with efficient incremental updates
+- Interactive Plotly charts with zoom, pan, and hover
+- Dual y-axis support for multi-curve plotting
+- Vertical markers for reference lines
+- Lightweight architecture optimized for scientific instruments
 
-[tool.setuptools.package-data]
-qtplotly = ["resources/*.html", "resources/*.js"]
+## Installation
+
+```bash
+pip install qtplotly
+```
+
+## Usage
+
+See the `examples/` folder for complete working examples including:
+- Static data plotting
+- Real-time streaming
+- Multiple curves and dual axes
+
+## Requirements
+
+- Python >= 3.9
+- PySide6 >= 6.0.0
+- plotly >= 5.0.0
+- numpy >= 1.20.0
+
+## License
+
+MIT
+
+## Author
+
+Roberto Herrera - University of Missouri Research Reactor
