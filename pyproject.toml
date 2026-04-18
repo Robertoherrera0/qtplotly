@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qtplotly"
-version = "0.1.2"
-description = "Qt widget for real-time scientific plotting"
+version = "0.1.3"
+description = "Qt widget for embedding interactive Plotly charts in PySide6 and PyQt applications"
 authors = [
     {name = "Roberto Herrera", email = "rdhc54@missouri.edu"}
 ]
@@ -13,11 +13,39 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 
+keywords = [
+    "qt",
+    "plotly",
+    "plotting",
+    "visualization",
+    "pyside6",
+    "pyqt",
+    "real-time"
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: User Interfaces",
+]
+
 dependencies = [
     "PySide6>=6.0.0",
     "plotly>=5.0.0",
     "numpy>=1.20.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/Robertoherrera0/qtplotly"
+Repository = "https://github.com/Robertoherrera0/qtplotly"
+Issues = "https://github.com/Robertoherrera0/qtplotly/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

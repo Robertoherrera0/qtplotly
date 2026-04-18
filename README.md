@@ -1,22 +1,34 @@
 # qtplotly
 
-Qt widget for embedding interactive Plotly figures in PySide6 and PyQt desktop applications.
+Qt widget for embedding interactive Plotly charts in PySide6 and PyQt applications.
 
-Built for real-time scientific data visualization. Originally developed for the GANS neutron reflectometer at the University of Missouri Research Reactor.
+Provides real-time data streaming with efficient updates using Plotly's `react()` and `extendTraces()` methods.
 
 ## Features
 
-- Real-time streaming with efficient incremental updates
-- Interactive Plotly charts with zoom, pan, and hover
-- Dual y-axis support for multi-curve plotting
-- Vertical markers for reference lines
-- Lightweight architecture optimized for scientific instruments
+- Interactive Plotly charts in Qt applications
+- Real-time streaming with incremental updates
+- Dual y-axis support
+- Vertical reference markers
+- Simple API
 
 ## Installation
 
 ```bash
 pip install qtplotly
 ```
+
+## Use Cases
+
+- Data analysis tools
+- Real-time monitoring dashboards
+- Scientific instruments
+- Process control interfaces
+- Any Qt desktop app needing interactive plots
+
+## Examples
+
+See the `examples/` folder for working code.
 
 ## Requirements
 
@@ -31,4 +43,6 @@ MIT
 
 ## Author
 
-Roberto Herrera - University of Missouri Research Reactor
+Roberto Herrera
+
+Developed for the GANS neutron reflectometer at the University of Missouri Research Reactor.
