@@ -4,20 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qtplotly"
-version = "0.1.0"
-description = "Qt Plotly widget for real-time scientific plotting"
+version = "0.1.1"
+description = "Qt widget for real-time scientific plotting"
 authors = [
-    {name = "Roberto Herrera"}
+    {name = "Roberto Herrera", email = "rdhc54@missouri.edu"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
-
 requires-python = ">=3.9"
 
 dependencies = [
-    "PySide6",
-    "plotly",
-    "numpy"
+    "PySide6>=6.0.0",
+    "plotly>=5.0.0",
+    "numpy>=1.20.0"
 ]
 
 [tool.setuptools.packages.find]
