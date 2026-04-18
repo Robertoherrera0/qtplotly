@@ -21,15 +21,12 @@ class PlotModel:
         self.colors = ColorTable()
         self.plot_bgcolor = "#FFFFFF"
 
-    def add_curve(self, name: str, axis: str = "y1", color: str | None = None):
-
+    def add_curve(self, name: str, axis: str = "y1", color: str | None = None, role: str = "data"):
         if name in self.curves:
             return self.curves[name]
-
         if color is None:
             color = self.colors.get(name)
-
-        curve = Curve(name=name, axis=axis, color=color)
+        curve = Curve(name=name, axis=axis, color=color, role=role)
         self.curves[name] = curve
         return curve
 
@@ -76,41 +73,33 @@ class PlotModel:
         width: float = 1.0,
         persistent: bool = False,
         label: str | None = None,
+        y0: float = 0.0,
+        y1: float = 1.0,
+        label_y: float = 0.97,
     ) -> Marker:
 
         marker = self.markers.get(name)
 
-        # --- reuse existing marker ---
         if marker is not None:
-
             marker.set_x(x)
-
-            if color is not None:
-                marker.set_color(color)
-
-            if width is not None:
-                marker.set_width(width)
-
-            if label is not None:
-                marker.set_label(label)
-
+            if color   is not None: marker.set_color(color)
+            if width   is not None: marker.set_width(width)
+            if label   is not None: marker.set_label(label)
+            marker.y0        = y0
+            marker.y1        = y1
+            marker.label_y   = label_y
             marker.persistent = persistent
-
             return marker
 
-        # --- create new marker ---
         if color is None:
             color = self.colors.get(name)
 
         marker = Marker(
-            name=name,
-            x=x,
-            label=label,
-            color=color,
-            width=width,
+            name=name, x=x, label=label,
+            color=color, width=width,
+            y0=y0, y1=y1, label_y=label_y,
             persistent=persistent,
         )
-
         self.markers[name] = marker
         return marker
     
