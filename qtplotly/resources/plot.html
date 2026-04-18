@@ -2,9 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-
 <script src="plotly.min.js"></script>
-
 <style>
 html,body{
 height:100%;
@@ -12,13 +10,11 @@ width:100%;
 margin:0;
 background:transparent;
 }
-
 #plot{
 height:100%;
 width:100%;
 background:transparent;
 }
-
 #plot .modebar{
 position:absolute !important;
 top:8px !important;
@@ -28,52 +24,47 @@ border-radius:6px;
 padding:2px;
 transition:opacity .12s ease;
 }
-
 #plot .modebar-btn{
 opacity:0.85;
 }
-
 #plot .modebar-btn:hover{
 opacity:1;
 }
 </style>
-
 </head>
-
 <body>
-
 <div id="plot"></div>
-
 <script>
-
 let gd = null;
+window.traceMap = {};
 
 document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
 });
 
-function installModebarHover(plot){
+function buildTraceMap(data) {
+    window.traceMap = {};
+    if (!data) return;
+    for (let i = 0; i < data.length; i++) {
+        if (data[i].name != null) window.traceMap[data[i].name] = i;
+    }
+}
 
+function installModebarHover(plot){
     const modebar = plot.querySelector(".modebar");
     if(!modebar) return;
-
     modebar.style.opacity = "0";
     modebar.style.pointerEvents = "none";
-
     plot.addEventListener("mouseenter", ()=>{
         modebar.style.opacity = "1";
         modebar.style.pointerEvents = "auto";
     });
-
     plot.addEventListener("mouseleave", ()=>{
         modebar.style.opacity = "0";
         modebar.style.pointerEvents = "none";
     });
 }
-
-
 function attachHandlers(plot){
-
     // double-click reset
     plot.on('plotly_doubleclick', function() {
         Plotly.relayout(plot, {
@@ -81,7 +72,6 @@ function attachHandlers(plot){
             'yaxis.autorange': true
         });
     });
-
     document.addEventListener('keydown', function(e) {
         if (e.key === "Escape") {
             Plotly.relayout(plot, {
@@ -91,14 +81,14 @@ function attachHandlers(plot){
         }
     });
 }
-
 function appendData(payload) {
-
     const { name, x, y } = payload;
-
+    if (!gd) return;
     const idx = window.traceMap[name];
-    if (idx === undefined) return;
-
+    if (idx === undefined) {
+        console.warn("appendData: unknown trace:", name, "known:", Object.keys(window.traceMap));
+        return;
+    }
     Plotly.extendTraces(
         "plot",
         {
@@ -108,43 +98,31 @@ function appendData(payload) {
         [idx]
     );
 }
-
 window.renderFigure = function(figJSON, cfgJSON) {
-
     try {
-
         const fig = JSON.parse(figJSON);
         const cfg = JSON.parse(cfgJSON);
-
         const plot = document.getElementById("plot");
-
         if (!gd) {
-
             gd = plot;
-
             Plotly.newPlot(gd, fig.data, fig.layout, cfg).then(() => {
+                buildTraceMap(gd.data);
                 installModebarHover(gd);
                 attachHandlers(gd);
             });
-
         } else {
-
-            Plotly.react(gd, fig.data, fig.layout, cfg);
+            Plotly.react(gd, fig.data, fig.layout, cfg).then(() => {
+                buildTraceMap(gd.data);
+            });
         }
-
         // apply paper background only 
         const paper = (fig.layout && fig.layout.paper_bgcolor) || "transparent";
         document.documentElement.style.background = paper;
         document.body.style.background = paper;
-
     } catch(err) {
-
         console.error("renderFigure error:", err);
-
     }
 };
-
 </script>
-
 </body>
 </html>
