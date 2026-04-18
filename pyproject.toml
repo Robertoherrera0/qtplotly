@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qtplotly"
-version = "0.1.1"
+version = "0.1.2"
 description = "Qt widget for real-time scientific plotting"
 authors = [
     {name = "Roberto Herrera", email = "rdhc54@missouri.edu"}
