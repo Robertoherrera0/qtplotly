@@ -154,10 +154,17 @@ class PlotWidget(QWidget):
         self.refresh()
     
     def _build_figure(self):
-        fig = make_subplots(
-            rows=1, cols=1,
-            specs=[[{"secondary_y": True}]]
+        has_y2 = any(
+            c.axis == "y2" and c.visible and len(c.x) > 0
+            for c in self.model.curves.values()
         )
+        y2_title = self.model.axis_titles.get("y2", "")
+        show_y2 = bool(has_y2 or y2_title)
+
+        if show_y2:
+            fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
+        else:
+            fig = make_subplots(rows=1, cols=1)
 
         shapes      = []
         annotations = []
@@ -166,7 +173,7 @@ class PlotWidget(QWidget):
             if not curve.visible:
                 continue
 
-            secondary = curve.axis == "y2"
+            secondary = show_y2 and curve.axis == "y2"
 
             if curve.role == "fit":
                 line = dict(color="red", width=2, dash="dash")
@@ -230,21 +237,14 @@ class PlotWidget(QWidget):
         ))
 
         visible_curves = [c for c in self.model.curves.values() if c.visible]
-        show_legend    = len(visible_curves) > 1
-
-        has_y2 = any(
-            c.axis == "y2" and c.visible and c.x is not None and len(c.x) > 0
-            for c in self.model.curves.values()
-        )
-        y2_title = self.model.axis_titles.get("y2", "")
-        show_y2 = bool(has_y2 or y2_title)
+        show_legend = len(visible_curves) > 1
 
         if self.model.live_mode:
             plot_bgcolor = "#FFF8E1"
         else:
             plot_bgcolor = self.model.get_background_color()
 
-        fig.update_layout(
+        layout = dict(
             autosize=True,
             plot_bgcolor=plot_bgcolor,
             paper_bgcolor="#FFFFFF",
@@ -285,22 +285,23 @@ class PlotWidget(QWidget):
                 ticklen=8,
                 automargin=True,
             ),
-            yaxis2=dict(
-                overlaying="y",
-                title=y2_title if show_y2 else "",
-                side="right",
-                visible=show_y2,
-                showgrid=False,
-                showline=show_y2,
-                showticklabels=show_y2,
-                ticks="outside" if show_y2 else "",
-                ticklen=8,
-                automargin=True,
-                linewidth=1,
-                linecolor="rgba(0,0,0,0.25)",
-            ),
         )
 
+        if show_y2:
+            layout["yaxis2"] = dict(
+                overlaying="y",
+                title=y2_title,
+                side="right",
+                showgrid=False,
+                showline=True,
+                linewidth=1,
+                linecolor="rgba(0,0,0,0.25)",
+                ticks="outside",
+                ticklen=8,
+                automargin=True,
+            )
+
+        fig.update_layout(**layout)
         fig.update_xaxes(domain=[0, 1])
         fig.update_yaxes(domain=[0, 1])
 
