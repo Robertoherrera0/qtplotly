@@ -20,6 +20,7 @@ class PlotModel:
         self.live_mode = False
         self.colors = ColorTable()
         self.plot_bgcolor = "#FFFFFF"
+        self.log_y = False
 
     def add_curve(self, name: str, axis: str = "y1", color: str | None = None, role: str = "data"):
         if name in self.curves:

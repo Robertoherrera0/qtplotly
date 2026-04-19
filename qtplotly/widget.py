@@ -148,7 +148,11 @@ class PlotWidget(QWidget):
         cfg_json = json.dumps(self._config)
         script = f"renderFigure({json.dumps(fig_json)}, {json.dumps(cfg_json)});"
         self.web.page().runJavaScript(script)
-
+    
+    def set_log_y(self, enabled: bool):
+        self.model.log_y = enabled
+        self.refresh()
+    
     def _build_figure(self):
         fig = make_subplots(
             rows=1, cols=1,
@@ -263,6 +267,7 @@ class PlotWidget(QWidget):
             ),
             yaxis=dict(
                 title=self.model.axis_titles["y1"],
+                type="log" if getattr(self.model, "log_y", False) else "linear",
                 showgrid=True,
                 gridcolor="rgba(0,0,0,0.08)",
                 zeroline=False,
