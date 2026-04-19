@@ -237,6 +237,7 @@ class PlotWidget(QWidget):
             for c in self.model.curves.values()
         )
         y2_title = self.model.axis_titles.get("y2", "")
+        show_y2 = bool(has_y2 or y2_title)
 
         if self.model.live_mode:
             plot_bgcolor = "#FFF8E1"
@@ -286,16 +287,17 @@ class PlotWidget(QWidget):
             ),
             yaxis2=dict(
                 overlaying="y",
-                title=y2_title,
+                title=y2_title if show_y2 else "",
                 side="right",
-                visible=bool(has_y2 or y2_title),
+                visible=show_y2,
                 showgrid=False,
-                showline=True,
-                linewidth=1,
-                linecolor="rgba(0,0,0,0.25)",
-                ticks="outside",
+                showline=show_y2,
+                showticklabels=show_y2,
+                ticks="outside" if show_y2 else "",
                 ticklen=8,
                 automargin=True,
+                linewidth=1,
+                linecolor="rgba(0,0,0,0.25)",
             ),
         )
 
