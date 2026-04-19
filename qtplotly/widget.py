@@ -232,8 +232,14 @@ class PlotWidget(QWidget):
         visible_curves = [c for c in self.model.curves.values() if c.visible]
         show_legend    = len(visible_curves) > 1
 
+        has_y2 = any(
+            c.axis == "y2" and c.visible and c.x is not None and len(c.x) > 0
+            for c in self.model.curves.values()
+        )
+        y2_title = self.model.axis_titles.get("y2", "")
+
         if self.model.live_mode:
-            plot_bgcolor = "#FFF8E1"  # warm yellow tint while scanning
+            plot_bgcolor = "#FFF8E1"
         else:
             plot_bgcolor = self.model.get_background_color()
 
@@ -280,8 +286,9 @@ class PlotWidget(QWidget):
             ),
             yaxis2=dict(
                 overlaying="y",
-                title=self.model.axis_titles["y2"],
+                title=y2_title,
                 side="right",
+                visible=bool(has_y2 or y2_title),
                 showgrid=False,
                 showline=True,
                 linewidth=1,
