@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qtplotly"
-version = "0.1.9"
+version = "0.2.0"
 description = "Qt widget for embedding interactive Plotly charts in PySide6 and PyQt applications"
 authors = [
     {name = "Roberto Herrera", email = "rdhc54@missouri.edu"}

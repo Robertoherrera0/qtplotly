@@ -172,7 +172,10 @@ class PlotWidget(QWidget):
         for curve in self.model.curves.values():
             if not curve.visible:
                 continue
-
+            
+            if curve.x is None or len(curve.x) == 0:
+                continue
+            
             secondary = show_y2 and curve.axis == "y2"
 
             if curve.role == "fit":
@@ -236,7 +239,10 @@ class PlotWidget(QWidget):
             layer="below",
         ))
 
-        visible_curves = [c for c in self.model.curves.values() if c.visible]
+        visible_curves = [
+            c for c in self.model.curves.values()
+            if c.visible and c.x is not None and len(c.x) > 0
+        ]
         show_legend = len(visible_curves) > 1
 
         if self.model.live_mode:
