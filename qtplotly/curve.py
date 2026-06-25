@@ -16,6 +16,8 @@ class Curve:
 
     role: str = "data"
 
+    error_y: np.ndarray | None =  None
+
     def __post_init__(self):
 
         if self.axis not in ("y1", "y2"):
@@ -32,18 +34,16 @@ class Curve:
         self.x = np.concatenate((self.x, x))
         self.y = np.concatenate((self.y, y))
 
-    def set_data(self, x, y):
-
+    def set_data(self, x, y, error_y=None):
         x = np.asarray(x)
         y = np.asarray(y)
-
         if x.shape != y.shape:
             raise ValueError("x and y must have the same shape")
-
         self.x = x
         self.y = y
+        self.error_y = np.asarray(error_y) if error_y is not None else None
 
     def clear(self):
-
         self.x = np.empty(0)
         self.y = np.empty(0)
+        self.error_y = None

@@ -75,8 +75,8 @@ class PlotWidget(QWidget):
         self.model.remove_curve(name)
         self.refresh()
 
-    def set_data(self, name, x, y):
-        self.model.set_data(name, x, y)
+    def set_data(self, name, x, y, error_y=None):
+        self.model.set_data(name, x, y, error_y=error_y)
         self.refresh()
 
     def append_data(self, name, x, y):
@@ -172,10 +172,9 @@ class PlotWidget(QWidget):
         for curve in self.model.curves.values():
             if not curve.visible:
                 continue
-            
             if curve.x is None or len(curve.x) == 0:
                 continue
-            
+
             secondary = show_y2 and curve.axis == "y2"
 
             if curve.role == "fit":
@@ -185,10 +184,17 @@ class PlotWidget(QWidget):
                 line = dict(width=2, color=curve.color) if curve.color else dict(width=2)
                 mode = "lines+markers"
 
+            error_y_spec = (
+                dict(type="data", array=curve.error_y.tolist(), visible=True)
+                if curve.error_y is not None and len(curve.error_y) > 0
+                else None
+            )
+
             fig.add_trace(
                 go.Scatter(
                     x=curve.x,
                     y=curve.y,
+                    error_y=error_y_spec,
                     mode=mode,
                     name=curve.name,
                     line=line,

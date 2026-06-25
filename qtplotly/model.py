@@ -48,14 +48,11 @@ class PlotModel:
 
         curve.append(x, y)
 
-    def set_data(self, name: str, x, y):
-
+    def set_data(self, name: str, x, y, error_y=None):
         curve = self.curves.get(name)
-
         if curve is None:
             curve = self.add_curve(name)
-
-        curve.set_data(x, y)
+        curve.set_data(x, y, error_y=error_y)
 
     def get_background_color(self):
         return self.plot_bgcolor
