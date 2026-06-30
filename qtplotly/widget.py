@@ -6,12 +6,13 @@ import numpy as np
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from PySide6.QtCore import QUrl, QTimer
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebChannel import QWebChannel
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from .model import PlotModel
-from .bridge import PlotBridge
+from .bridge import PlotBridge, SelectionBridge
 
 
 class PlotWidget(QWidget):
@@ -33,12 +34,19 @@ class PlotWidget(QWidget):
 
         self.bridge = PlotBridge(self.web)
 
+        self.selection_bridge = SelectionBridge()
+        self._channel = QWebChannel(self.web.page())
+        self._channel.registerObject("qtBridge", self.selection_bridge)
+        self.web.page().setWebChannel(self._channel)
+
         self._ready             = False
         self._pending_json      = None
         self._pending_fig       = None
         self._refresh_scheduled = False
+        self._dragmode = "zoom"
 
         self._load_html()
+
 
         self._config = dict(
             displaylogo=False,
@@ -113,7 +121,11 @@ class PlotWidget(QWidget):
         if self.model.live_mode != enabled:
             self.model.live_mode = enabled
             self.refresh()
-
+    
+    def set_select_mode(self, enabled: bool):
+        self._dragmode = "select" if enabled else "zoom"
+        self.refresh()
+    
     def clear(self):
         self.model.clear()
         self.refresh()
@@ -258,6 +270,7 @@ class PlotWidget(QWidget):
 
         layout = dict(
             autosize=True,
+            dragmode=self._dragmode,
             plot_bgcolor=plot_bgcolor,
             paper_bgcolor="#FFFFFF",
             shapes=shapes,

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <script src="plotly.min.js"></script>
+<script src="qwebchannel.js"></script>
 <style>
 html,body{
 height:100%;
@@ -37,6 +38,11 @@ opacity:1;
 <script>
 let gd = null;
 window.traceMap = {};
+window.qtBridge = null;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {
+    window.qtBridge = channel.objects.qtBridge;
+});
 
 document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
@@ -65,13 +71,21 @@ function installModebarHover(plot){
     });
 }
 function attachHandlers(plot){
-    // double-click reset
     plot.on('plotly_doubleclick', function() {
         Plotly.relayout(plot, {
             'xaxis.autorange': true,
             'yaxis.autorange': true
         });
     });
+
+    plot.on('plotly_selected', function(eventData) {
+        if (!eventData || !eventData.range) return;
+        const xrange = eventData.range.x;
+        if (window.qtBridge) {
+            window.qtBridge.onSelection(xrange[0], xrange[1]);
+        }
+    });
+
     document.addEventListener('keydown', function(e) {
         if (e.key === "Escape") {
             Plotly.relayout(plot, {
@@ -115,7 +129,6 @@ window.renderFigure = function(figJSON, cfgJSON) {
                 buildTraceMap(gd.data);
             });
         }
-        // apply paper background only 
         const paper = (fig.layout && fig.layout.paper_bgcolor) || "transparent";
         document.documentElement.style.background = paper;
         document.body.style.background = paper;

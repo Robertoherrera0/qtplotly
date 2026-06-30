@@ -1,6 +1,8 @@
 from __future__ import annotations
 import json
 
+from PySide6.QtCore import QObject, Signal, Slot
+
 
 class PlotBridge:
     """
@@ -19,3 +21,15 @@ class PlotBridge:
             script = f"{function}({payload});"
 
         self._webview.page().runJavaScript(script)
+
+
+class SelectionBridge(QObject):
+    """
+    Receives box-selection events from the JS/Plotly side via QWebChannel
+    and re-emits them as a Qt signal for consumers of PlotWidget.
+    """
+    selection_made = Signal(float, float)
+
+    @Slot(float, float)
+    def onSelection(self, xmin: float, xmax: float):
+        self.selection_made.emit(xmin, xmax)
