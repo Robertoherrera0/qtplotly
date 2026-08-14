@@ -74,17 +74,19 @@ class ScanViewer(QWidget):
             self.status_callback(status)
 
     def _on_message(self, msg):
-
+        # Real DataService message types are:
+        #   "snapshot"  (REP response, one-shot)
+        #   "metadata", "scan_start", "scan_point", "scan_end", "scan_status" (PUB stream)
         mtype = msg.get("type")
 
-        if mtype == "data_status":
-            self._apply_live_state(msg.get("scan_status"))
+        if mtype == "scan_status":
+            self._apply_live_state(msg.get("status"))
 
         elif mtype == "metadata":
             if self.meta_callback:
                 self.meta_callback(msg.get("metadata", {}))
 
-        elif mtype == "scan_data":
+        elif mtype == "snapshot":
             self._handle_snapshot(msg)
 
         elif mtype == "scan_start":
@@ -92,6 +94,9 @@ class ScanViewer(QWidget):
 
         elif mtype == "scan_point":
             self._handle_scan_point(msg)
+
+        elif mtype == "scan_end":
+            self._apply_live_state("idle")
 
     def _setup_columns(self, columns):
         self.columns = columns
@@ -122,7 +127,7 @@ class ScanViewer(QWidget):
         if self.meta_callback:
             self.meta_callback(msg.get("metadata", {}))
 
-        # --- status ---
+        # --- status (snapshot payload uses "scan_status" as the key) ---
         self._apply_live_state(msg.get("scan_status"))
 
         rows = msg.get("data", [])
@@ -145,6 +150,7 @@ class ScanViewer(QWidget):
         self.plot.append_data("y", x, y)
 
     def _handle_scan_start(self, msg):
+        print("[scan_start]", msg.get("columns"))
 
         columns = msg.get("columns", {})
 
@@ -181,7 +187,10 @@ class ScanViewer(QWidget):
         x = row[self.col_index[x_name]]
         y = row[self.col_index[y_name]]
 
-        self.plot.append_data("y", [x], [y])
+        # This is the line that matters for the timing test:
+        # append_point -> Plotly.extendTraces (cheap, incremental)
+        # append_data  -> full model rebuild + Plotly.react (expensive, grows with scan length)
+        self.plot.append_point("y", [x], [y])
 
 
 class MainWindow(QMainWindow):
@@ -190,7 +199,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.resize(1100, 800)
-        self.setWindowTitle("GANS Test")
+        self.setWindowTitle("GANS Test — append_point timing check")
 
         central = QWidget()
         layout = QVBoxLayout(central)

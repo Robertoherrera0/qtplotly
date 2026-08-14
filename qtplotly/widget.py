@@ -91,6 +91,12 @@ class PlotWidget(QWidget):
         self.model.append_data(name, x, y)
         self.refresh()
 
+    def append_point(self, name, x_new, y_new):
+        self.model.append_data(name, x_new, y_new)
+        payload = json.dumps({"name": name, "x": list(x_new), "y": list(y_new)})
+        script = f"appendData({payload});"
+        self.web.page().runJavaScript(script)
+        
     def add_vertical_marker(
         self,
         name: str,
@@ -166,156 +172,157 @@ class PlotWidget(QWidget):
         self.refresh()
     
     def _build_figure(self):
-        has_y2 = any(
-            c.axis == "y2" and c.visible and len(c.x) > 0
-            for c in self.model.curves.values()
-        )
-        y2_title = self.model.axis_titles.get("y2", "")
-        show_y2 = bool(has_y2 or y2_title)
+            has_y2 = any(
+                c.axis == "y2" and c.visible and len(c.x) > 0
+                for c in self.model.curves.values()
+            )
+            y2_title = self.model.axis_titles.get("y2", "")
+            show_y2 = bool(has_y2 or y2_title)
 
-        if show_y2:
-            fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
-        else:
-            fig = make_subplots(rows=1, cols=1)
-
-        shapes      = []
-        annotations = []
-
-        for curve in self.model.curves.values():
-            if not curve.visible:
-                continue
-            if curve.x is None or len(curve.x) == 0:
-                continue
-
-            secondary = show_y2 and curve.axis == "y2"
-
-            if curve.role == "fit":
-                line = dict(color="red", width=2, dash="dash")
-                mode = "lines"
+            if show_y2:
+                fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
             else:
-                line = dict(width=2, color=curve.color) if curve.color else dict(width=2)
-                mode = "lines+markers"
+                fig = make_subplots(rows=1, cols=1)
 
-            error_y_spec = (
-                dict(type="data", array=curve.error_y.tolist(), visible=True)
-                if curve.error_y is not None and len(curve.error_y) > 0
-                else None
-            )
+            shapes      = []
+            annotations = []
 
-            fig.add_trace(
-                go.Scatter(
-                    x=curve.x,
-                    y=curve.y,
-                    error_y=error_y_spec,
-                    mode=mode,
-                    name=curve.name,
-                    line=line,
-                    marker=dict(size=6) if curve.role != "fit" else None,
-                ),
-                secondary_y=secondary,
-            )
+            for curve in self.model.curves.values():
+                if not curve.visible:
+                    continue
 
-        for marker in self.model.markers.values():
-            if not marker.visible:
-                continue
+                secondary = show_y2 and curve.axis == "y2"
 
-            color = marker.color if marker.color else "#555555"
+                if curve.role == "fit":
+                    line = dict(color="red", width=2, dash="dash")
+                    mode = "lines"
+                else:
+                    line = dict(width=2, color=curve.color) if curve.color else dict(width=2)
+                    mode = "lines+markers"
+
+                x_vals = curve.x.tolist() if curve.x is not None else []
+                y_vals = curve.y.tolist() if curve.y is not None else []
+
+                error_y_spec = (
+                    dict(type="data", array=curve.error_y.tolist(), visible=True)
+                    if curve.error_y is not None and len(curve.error_y) > 0
+                    else None
+                )
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=x_vals,
+                        y=y_vals,
+                        error_y=error_y_spec,
+                        mode=mode,
+                        name=curve.name,
+                        line=line,
+                        marker=dict(size=6) if curve.role != "fit" else None,
+                    ),
+                    secondary_y=secondary,
+                )
+
+            for marker in self.model.markers.values():
+                if not marker.visible:
+                    continue
+
+                color = marker.color if marker.color else "#555555"
+
+                shapes.append(dict(
+                    type="line",
+                    x0=marker.x, x1=marker.x,
+                    y0=marker.y0, y1=marker.y1,
+                    xref="x", yref="paper",
+                    line=dict(color=color, width=marker.width),
+                    layer="above",
+                ))
+
+                annotations.append(dict(
+                    x=marker.x,
+                    y=marker.label_y,
+                    xref="x", yref="paper",
+                    text=marker.label,
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=0.8,
+                    arrowwidth=1.0,
+                    arrowcolor=color,
+                    ax=0, ay=-14,
+                    font=dict(size=10, color=color),
+                    bgcolor="rgba(255,255,255,0.7)",
+                    borderwidth=0,
+                    xanchor="center",
+                    yanchor="bottom",
+                ))
 
             shapes.append(dict(
-                type="line",
-                x0=marker.x, x1=marker.x,
-                y0=marker.y0, y1=marker.y1,
-                xref="x", yref="paper",
-                line=dict(color=color, width=marker.width),
-                layer="above",
+                type="rect",
+                xref="paper", yref="paper",
+                x0=0, y0=0, x1=1, y1=1,
+                line=dict(color="rgba(0,0,0,0.25)", width=1),
+                fillcolor="rgba(0,0,0,0)",
+                layer="below",
             ))
 
-            annotations.append(dict(
-                x=marker.x,
-                y=marker.label_y,
-                xref="x", yref="paper",
-                text=marker.label,
-                showarrow=True,
-                arrowhead=2,
-                arrowsize=0.8,
-                arrowwidth=1.0,
-                arrowcolor=color,
-                ax=0, ay=-14,
-                font=dict(size=10, color=color),
-                bgcolor="rgba(255,255,255,0.7)",
-                borderwidth=0,
-                xanchor="center",
-                yanchor="bottom",
-            ))
+            visible_curves = [
+                c for c in self.model.curves.values()
+                if c.visible and c.x is not None and len(c.x) > 0
+            ]
+            show_legend = len(visible_curves) > 1
 
-        shapes.append(dict(
-            type="rect",
-            xref="paper", yref="paper",
-            x0=0, y0=0, x1=1, y1=1,
-            line=dict(color="rgba(0,0,0,0.25)", width=1),
-            fillcolor="rgba(0,0,0,0)",
-            layer="below",
-        ))
+            if self.model.live_mode:
+                plot_bgcolor = "#FFF8E1"
+            else:
+                plot_bgcolor = self.model.get_background_color()
+            font_size = 16
+            layout = dict(
+                autosize=True,
+                dragmode=self._dragmode,
+                plot_bgcolor=plot_bgcolor,
+                paper_bgcolor="#FFFFFF",
+                shapes=shapes,
+                annotations=annotations,
+                margin=dict(l=10, r=10, t=35, b=35),
+                showlegend=show_legend,
+                legend=dict(
+                    orientation="v",
+                    x=0.985, y=0.985,
+                    xanchor="right", yanchor="top",
+                    font=dict(size=11),
+                    bgcolor="rgba(255,255,255,0.8)",
+                    borderwidth=0,
+                ),
+                xaxis=dict(
+                    title=dict(text=self.model.axis_titles["x"], font=dict(size=font_size)),
+                    showgrid=True,
+                    gridcolor="rgba(0,0,0,0.08)",
+                    zeroline=False,
+                    showline=True,
+                    linewidth=1,
+                    linecolor="rgba(0,0,0,0.25)",
+                    ticks="outside",
+                    ticklen=8,
+                    automargin=True,
+                ),
+                yaxis=dict(
+                    title=dict(text=self.model.axis_titles["y1"], font=dict(size=font_size)),
+                    type="log" if getattr(self.model, "log_y", False) else "linear",
+                    showgrid=True,
+                    gridcolor="rgba(0,0,0,0.08)",
+                    zeroline=False,
+                    showline=True,
+                    linewidth=1,
+                    linecolor="rgba(0,0,0,0.25)",
+                    ticks="outside",
+                    ticklen=8,
+                    automargin=True,
+                ),
+            )
 
-        visible_curves = [
-            c for c in self.model.curves.values()
-            if c.visible and c.x is not None and len(c.x) > 0
-        ]
-        show_legend = len(visible_curves) > 1
-
-        if self.model.live_mode:
-            plot_bgcolor = "#FFF8E1"
-        else:
-            plot_bgcolor = self.model.get_background_color()
-
-        layout = dict(
-            autosize=True,
-            dragmode=self._dragmode,
-            plot_bgcolor=plot_bgcolor,
-            paper_bgcolor="#FFFFFF",
-            shapes=shapes,
-            annotations=annotations,
-            margin=dict(l=10, r=10, t=35, b=35),
-            showlegend=show_legend,
-            legend=dict(
-                orientation="v",
-                x=0.985, y=0.985,
-                xanchor="right", yanchor="top",
-                font=dict(size=11),
-                bgcolor="rgba(255,255,255,0.8)",
-                borderwidth=0,
-            ),
-            xaxis=dict(
-                title=self.model.axis_titles["x"],
-                showgrid=True,
-                gridcolor="rgba(0,0,0,0.08)",
-                zeroline=False,
-                showline=True,
-                linewidth=1,
-                linecolor="rgba(0,0,0,0.25)",
-                ticks="outside",
-                ticklen=8,
-                automargin=True,
-            ),
-            yaxis=dict(
-                title=self.model.axis_titles["y1"],
-                type="log" if getattr(self.model, "log_y", False) else "linear",
-                showgrid=True,
-                gridcolor="rgba(0,0,0,0.08)",
-                zeroline=False,
-                showline=True,
-                linewidth=1,
-                linecolor="rgba(0,0,0,0.25)",
-                ticks="outside",
-                ticklen=8,
-                automargin=True,
-            ),
-        )
-
-        if show_y2:
-            layout["yaxis2"] = dict(
+            if show_y2:
+                layout["yaxis2"] = dict(
                 overlaying="y",
-                title=y2_title,
+                title=dict(text=y2_title, font=dict(size=font_size)),
                 side="right",
                 showgrid=False,
                 showline=True,
@@ -326,8 +333,8 @@ class PlotWidget(QWidget):
                 automargin=True,
             )
 
-        fig.update_layout(**layout)
-        fig.update_xaxes(domain=[0, 1])
-        fig.update_yaxes(domain=[0, 1])
+            fig.update_layout(**layout)
+            fig.update_xaxes(domain=[0, 1])
+            fig.update_yaxes(domain=[0, 1])
 
-        return fig
+            return fig
