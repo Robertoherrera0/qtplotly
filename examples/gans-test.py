@@ -25,6 +25,12 @@ DATA_REP_ADDR = f"tcp://127.0.0.1:{DATA_REP_PORT}"
 
 
 class ScanViewer(QWidget):
+    """
+    Mirrors gans_control.ui.plot.scan_plot.ScanPlot's exact curve naming
+    ("data" / "data_y2") and reset/append pattern, isolated from all
+    gans-control code, to determine whether the traceMap mismatch is a
+    qtplotly bug or a gans-control usage bug.
+    """
 
     def __init__(self):
         super().__init__()
@@ -36,15 +42,22 @@ class ScanViewer(QWidget):
         self.plot = PlotWidget()
         layout.addWidget(self.plot)
 
-        self.plot.add_curve("y")
+        # Same curve names as ScanPlot.__init__
+        self.plot.add_curve("data", color="#2E86AB")
+        self.plot.add_curve("data_y2", color="#F59E0B", axis="y2")
+        self.plot.set_axis_title("x", "Motor")
+        self.plot.set_axis_title("y1", "Counts")
+
+        self.x_col = None
+        self.y_col = None
+        self.col_index = {}
+        self.current_x = np.array([])
+        self.current_y = np.array([])
+        self._render_idx = 0
 
         self.last_status = None
-
         self.status_callback = None
         self.meta_callback = None
-
-        self.columns = {}
-        self.col_index = {}
 
         subscribe("", DATA_PUB_ADDR)
         self.stream = stream("")
@@ -54,152 +67,94 @@ class ScanViewer(QWidget):
         ctx = zmq.Context.instance()
         req = ctx.socket(zmq.REQ)
         req.connect(DATA_REP_ADDR)
-
         req.send_string("snapshot")
         snapshot = json.loads(req.recv_string())
-
         self._on_message(snapshot)
 
     def _apply_live_state(self, status):
         self.last_status = status
-
         if status == "running":
-            self.plot.set_plot_background("#FFF2C2")  # yellow
+            self.plot.set_plot_background("#FFF2C2")
             self.plot.set_live_mode(True)
         else:
             self.plot.set_plot_background("#FFFFFF")
             self.plot.set_live_mode(False)
-
         if self.status_callback:
             self.status_callback(status)
 
     def _on_message(self, msg):
-        # Real DataService message types are:
-        #   "snapshot"  (REP response, one-shot)
-        #   "metadata", "scan_start", "scan_point", "scan_end", "scan_status" (PUB stream)
         mtype = msg.get("type")
 
         if mtype == "scan_status":
             self._apply_live_state(msg.get("status"))
-
         elif mtype == "metadata":
             if self.meta_callback:
                 self.meta_callback(msg.get("metadata", {}))
-
         elif mtype == "snapshot":
-            self._handle_snapshot(msg)
-
+            self._apply_live_state(msg.get("scan_status"))
         elif mtype == "scan_start":
             self._handle_scan_start(msg)
-
         elif mtype == "scan_point":
             self._handle_scan_point(msg)
-
         elif mtype == "scan_end":
             self._apply_live_state("idle")
 
-    def _setup_columns(self, columns):
-        self.columns = columns
+    # Same column-resolution logic as ScanPlot._parse_columns
+    def _parse_columns(self, columns: dict):
         self.col_index = {name: int(k) for k, name in columns.items()}
+        names = list(self.col_index.keys())
+        self.x_col = names[0] if names else None
+        self.y_col = (
+            "det00" if "det00" in self.col_index else
+            "det"   if "det"   in self.col_index else
+            (names[1] if len(names) > 1 else None)
+        )
 
-        names = list(columns.values())
-
-        if not names:
-            return None, None
-
-        x_name = names[0]
-
-        if "det" in self.col_index:
-            y_name = "det"
-        elif len(names) > 1:
-            y_name = names[1]
-        else:
-            return None, None
-
-        self.plot.set_axis_title("x", x_name)
-        self.plot.set_axis_title("y1", y_name)
-
-        return x_name, y_name
-
-    def _handle_snapshot(self, msg):
-
-        # --- metadata ---
-        if self.meta_callback:
-            self.meta_callback(msg.get("metadata", {}))
-
-        # --- status (snapshot payload uses "scan_status" as the key) ---
-        self._apply_live_state(msg.get("scan_status"))
-
-        rows = msg.get("data", [])
-        columns = msg.get("columns", {})
-
-        if not rows:
-            return
-
-        x_name, y_name = self._setup_columns(columns)
-        if x_name is None:
-            return
-
-        arr = np.asarray(rows)
-
-        x = arr[:, self.col_index[x_name]]
-        y = arr[:, self.col_index[y_name]]
-
+    # Same reset pattern as ScanPlot._reset_plot — clear() + re-add_curve,
+    # never renaming the curve afterward.
+    def _reset_plot(self):
         self.plot.clear()
-        self.plot.add_curve("y")
-        self.plot.append_data("y", x, y)
+        self.plot.add_curve("data", color="#2E86AB")
+        self.plot.add_curve("data_y2", color="#F59E0B", axis="y2")
+        self.plot.set_axis_title("x", self.x_col or "Motor")
+        self.plot.set_axis_title("y1", self.y_col or "Counts")
+        self.plot.refresh()
 
     def _handle_scan_start(self, msg):
         print("[scan_start]", msg.get("columns"))
-
-        columns = msg.get("columns", {})
-
-        x_name, y_name = self._setup_columns(columns)
-        if x_name is None:
-            return
-
-        self.plot.clear()
-        self.plot.add_curve("y")
-
-        # force live immediately
+        self._parse_columns(msg.get("columns", {}))
+        self.current_x = np.array([])
+        self.current_y = np.array([])
+        self._render_idx = 0
+        self._reset_plot()
+        self.plot.set_live_mode(True)
         self._apply_live_state("running")
 
     def _handle_scan_point(self, msg):
-
-        if not self.col_index:
-            return
-
         row = msg.get("row")
-        if not row:
+        if not row or not self.x_col or not self.y_col:
+            return
+        try:
+            self.current_x = np.append(self.current_x, row[self.col_index[self.x_col]])
+            self.current_y = np.append(self.current_y, row[self.col_index[self.y_col]])
+        except (KeyError, IndexError):
             return
 
-        names = list(self.columns.values())
-
-        x_name = names[0]
-
-        if "det" in self.col_index:
-            y_name = "det"
-        elif len(names) > 1:
-            y_name = names[1]
-        else:
-            return
-
-        x = row[self.col_index[x_name]]
-        y = row[self.col_index[y_name]]
-
-        # This is the line that matters for the timing test:
-        # append_point -> Plotly.extendTraces (cheap, incremental)
-        # append_data  -> full model rebuild + Plotly.react (expensive, grows with scan length)
-        self.plot.append_point("y", [x], [y])
+        new_x = self.current_x[self._render_idx:]
+        new_y = self.current_y[self._render_idx:]
+        if len(new_x) > 0:
+            print(f"[append_point] pushing {len(new_x)} new point(s), "
+                  f"total so far {len(self.current_x)}")
+            self.plot.append_point("data", new_x.tolist(), new_y.tolist())
+            self._render_idx = len(self.current_x)
 
 
 class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-
         self.resize(1100, 800)
-        self.setWindowTitle("GANS Test — append_point timing check")
+        self.setWindowTitle("GANS Test — mirrors gans-control naming exactly")
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -216,8 +171,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status_label)
 
         self.viewer = ScanViewer()
-
-        # IMPORTANT: connect before snapshot
         self.viewer.status_callback = self._update_status
         self.viewer.meta_callback = self._update_meta
 
@@ -237,10 +190,8 @@ class MainWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.meta_label)
         scroll.setFixedHeight(150)
-
         layout.addWidget(scroll)
 
-        # NOW safe to request snapshot
         self.viewer.request_snapshot()
 
     def _update_status(self, status):
@@ -262,10 +213,8 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-
     win = MainWindow()
     win.show()
-
     sys.exit(app.exec())
 
 

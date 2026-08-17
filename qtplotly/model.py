@@ -24,7 +24,11 @@ class PlotModel:
 
     def add_curve(self, name: str, axis: str = "y1", color: str | None = None, role: str = "data"):
         if name in self.curves:
-            return self.curves[name]
+            curve = self.curves[name]
+            curve.name = name
+            if color is not None:
+                curve.color = color
+            return curve
         if color is None:
             color = self.colors.get(name)
         curve = Curve(name=name, axis=axis, color=color, role=role)
