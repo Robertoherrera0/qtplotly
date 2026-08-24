@@ -144,8 +144,11 @@ class PlotWidget(QWidget):
         self.model.plot_bgcolor = color
         self.refresh()
 
-    def refresh(self):
+    def refresh(self, immediate: bool = False):
         self._pending_fig = self._build_figure()
+        if immediate:
+            self._do_refresh()
+            return
         if not self._refresh_scheduled:
             self._refresh_scheduled = True
             QTimer.singleShot(40, self._do_refresh)
