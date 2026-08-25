@@ -93,6 +93,9 @@ class PlotWidget(QWidget):
 
     def append_point(self, name, x_new, y_new):
         self.model.append_data(name, x_new, y_new)
+        if not self._ready:
+            self._pending_json = self._build_figure().to_json(validate=False)
+            return
         payload = json.dumps({"name": name, "x": list(x_new), "y": list(y_new)})
         script = f"appendData({payload});"
         self.web.page().runJavaScript(script)
